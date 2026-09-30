@@ -8,6 +8,8 @@ pub struct PluginData {
     pub objects: Objects,
     pub cells: Cells,
     pub dialogues: Dialogues,
+    /// OpenMW's Lua script configuration (`LUAL`), one list for the whole plugin.
+    pub lua: Option<ScriptConfigList>,
 }
 
 impl PluginData {
@@ -41,6 +43,11 @@ impl PluginData {
         plugin.objects.extend(self.objects.into_values());
         plugin.objects.extend(self.cells.into_objects());
         plugin.objects.extend(self.dialogues.into_objects());
+        if let Some(lua) = self.lua
+            && !lua.scripts.is_empty()
+        {
+            plugin.objects.push(lua.into());
+        }
         plugin.sort_objects();
         plugin
     }
@@ -198,6 +205,11 @@ impl PluginData {
                     let group = self.dialogues.get_mut(&dialogue_id).expect("Orphan DialogueInfo");
                     group.insert_info(info, &mut info_index);
                 }
+
+                // OpenMW's Lua scripts: a file's LUAL records read as one list, in order.
+                ScriptConfigList(list) => {
+                    merge_script_lists(list, &mut self.lua);
+                }
             }
         }
     }
@@ -221,6 +233,7 @@ impl PluginData {
                 info.set_ignored(ignored);
             }
         }
+        self.lua.set_ignored(ignored);
     }
 
     pub fn set_all_modified(&mut self, modified: bool) {
@@ -242,5 +255,6 @@ impl PluginData {
                 info.set_modified(modified);
             }
         }
+        self.lua.set_modified(modified);
     }
 }

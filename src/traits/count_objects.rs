@@ -14,6 +14,7 @@ impl CountObjects for PluginData {
             + self.objects.count_objects()
             + self.cells.count_objects()
             + self.dialogues.count_objects()
+            + self.lua.count_objects()
     }
 }
 

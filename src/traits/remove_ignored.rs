@@ -55,5 +55,6 @@ impl RemoveIgnored for PluginData {
             group.remove_ignored();
             !group.dialogue.ignored() // Note: discards all infos if the dialogue itself is ignored.
         });
+        self.lua.remove_ignored();
     }
 }

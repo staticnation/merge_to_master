@@ -66,6 +66,12 @@ impl MergeInto for PluginData {
                 entry.insert(object);
             }
         }
+
+        // Merge Lua scripts (OpenMW): by script path, replacing or combining (`types::lua`).
+        if let Some(lua) = self.lua {
+            info!("Merging Lua scripts to master: {}", lua.scripts.len());
+            merge_script_lists(lua, &mut target.lua);
+        }
     }
 }
 
@@ -81,6 +87,7 @@ impl MergeInto for TES3Object {
                     | TES3Object::PathGrid(_)
                     | TES3Object::Dialogue(_)
                     | TES3Object::DialogueInfo(_)
+                    | TES3Object::ScriptConfigList(_)
             )
         );
         *target = self;

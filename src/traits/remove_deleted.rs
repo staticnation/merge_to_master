@@ -43,6 +43,13 @@ impl RemoveDeleted for PluginData {
 
         self.cells.remove_deleted();
         self.dialogues.remove_deleted();
+
+        if self.lua.discard_deleted() {
+            info!("Removed deleted Lua script configuration");
+        }
+        if let Some(lua) = self.lua.as_mut() {
+            lua.clean_deletions(&deletions);
+        }
     }
 }
 
@@ -348,6 +355,17 @@ impl CleanDeletions for Cell {
     }
 }
 
+impl CleanDeletions for ScriptConfigList {
+    fn clean_deletions(&mut self, deletions: &Deletions) {
+        // A script attached to a record that no longer exists attaches to nothing.
+        for script in &mut self.scripts {
+            script
+                .records
+                .retain(|record| !deletions.intersects(&record.id, DeletionFlags::PHYSICAL));
+        }
+    }
+}
+
 impl CleanDeletions for BipedObject {
     fn clean_deletions(&mut self, deletions: &Deletions) {
         self.male_bodypart.clean(DeletionFlags::PHYSICAL, deletions);
@@ -469,6 +487,7 @@ bitflags::bitflags! {
         const PATH_GRID         = 1 << 40;
         const DIALOGUE          = 1 << 41;
         const DIALOGUE_INFO     = 1 << 42;
+        const SCRIPT_CONFIG_LIST = 1 << 43;
 
         const PHYSICAL = (
             DeletionFlags::ACTIVATOR.bits()
@@ -542,6 +561,7 @@ impl From<TES3Object> for DeletionFlags {
             TES3Object::PathGrid(_) => DeletionFlags::PATH_GRID,
             TES3Object::Dialogue(_) => DeletionFlags::DIALOGUE,
             TES3Object::DialogueInfo(_) => DeletionFlags::DIALOGUE_INFO,
+            TES3Object::ScriptConfigList(_) => DeletionFlags::SCRIPT_CONFIG_LIST,
         }
     }
 }

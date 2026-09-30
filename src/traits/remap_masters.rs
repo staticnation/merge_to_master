@@ -140,6 +140,27 @@ impl RemapMasters for PluginData {
                 .collect();
         }
 
+        // And OpenMW's per-reference Lua script entries, which name references the same way,
+        // and the references serialized inside Lua initialization data.
+        if let Some(lua) = plugin.lua.as_mut() {
+            remap_lua_data(lua, |file, _| {
+                if let Some(m) = usize::try_from(*file).ok().and_then(|i| local_remap.get(i).copied()) {
+                    *file = m as i32;
+                }
+            });
+            for script in &mut lua.scripts {
+                script.instances.retain_mut(|instance| {
+                    let remapped = usize::try_from(instance.mast_idx)
+                        .ok()
+                        .and_then(|i| local_remap.get(i).copied());
+                    remapped.is_some_and(|m| {
+                        instance.mast_idx = m as i32;
+                        true
+                    })
+                });
+            }
+        }
+
         Ok(plugin)
     }
 }
@@ -209,6 +230,10 @@ fn next_reference_index(plugin: &PluginData) -> u32 {
 fn apply_index_remap(plugin: &mut PluginData, index_remap: &[u32], start_index: u32) {
     let mut next_index = start_index;
 
+    // The plugin's own references are numbered afresh; remembered, old to new, for the
+    // Lua script entries that name them.
+    let mut renumbered: HashMap<u32, u32> = HashMap::new();
+
     let cells = plugin.cells.iter_mut();
 
     for cell in cells {
@@ -218,6 +243,7 @@ fn apply_index_remap(plugin: &mut PluginData, index_remap: &[u32], start_index: 
             .into_iter()
             .map(|((mut mast_index, mut refr_index), mut reference)| {
                 if mast_index == 0 {
+                    renumbered.insert(refr_index, next_index);
                     refr_index = next_index;
                     next_index += 1;
                 } else {
@@ -228,6 +254,49 @@ fn apply_index_remap(plugin: &mut PluginData, index_remap: &[u32], start_index: 
                 ((mast_index, refr_index), reference)
             })
             .collect();
+    }
+
+    // OpenMW's per-reference Lua script entries follow their references, and so do the
+    // references serialized inside Lua initialization data.
+    if let Some(lua) = plugin.lua.as_mut() {
+        remap_lua_data(lua, |file, index| {
+            if *file == 0 {
+                if let Some(&new) = renumbered.get(&*index) {
+                    *index = new;
+                }
+            } else if let Some(&m) = usize::try_from(*file).ok().and_then(|i| index_remap.get(i)) {
+                *file = m as i32;
+            }
+        });
+        for script in &mut lua.scripts {
+            for instance in &mut script.instances {
+                if instance.mast_idx == 0 {
+                    if let Some(&new) = renumbered.get(&instance.ref_idx) {
+                        instance.ref_idx = new;
+                    }
+                } else if let Some(&m) = usize::try_from(instance.mast_idx)
+                    .ok()
+                    .and_then(|i| index_remap.get(i))
+                {
+                    instance.mast_idx = m as i32;
+                }
+            }
+        }
+    }
+}
+
+/// Runs `f` over every object reference serialized in a Lua configuration's
+/// initialization data (`types::luad`). Data that does not parse is left as it was.
+fn remap_lua_data(lua: &mut tes3::esp::ScriptConfigList, mut f: impl FnMut(&mut i32, &mut u32)) {
+    for script in &mut lua.scripts {
+        let datas = std::iter::once(&mut script.init_data)
+            .chain(script.records.iter_mut().map(|r| &mut r.data))
+            .chain(script.instances.iter_mut().map(|i| &mut i.data));
+        for data in datas {
+            if let Err(e) = remap_refnums(data, &mut f) {
+                warn!("Lua initialization data of {} left as it was: {e}", script.path);
+            }
+        }
     }
 }
 
