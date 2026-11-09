@@ -75,9 +75,12 @@ impl DialogueGroup {
     /// Note: Both front/back links are left unmodified to match engine behavior.
     ///
     pub fn repair_links(&mut self) {
-        let mut windows = self.infos.make_contiguous().windows_mut();
+        let infos = self.infos.make_contiguous();
 
-        while let Some([prev, curr]) = windows.next() {
+        // Each adjacent pair, both mutable: `split_at_mut` lends the two halves at once.
+        for i in 1..infos.len() {
+            let (head, tail) = infos.split_at_mut(i);
+            let (prev, curr) = (&mut head[i - 1], &mut tail[0]);
             if prev.next_id != curr.id {
                 prev.next_id.clear();
                 prev.next_id.push_str(&curr.id);

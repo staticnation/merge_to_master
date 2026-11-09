@@ -25,7 +25,6 @@ pub mod prelude {
     pub use smallvec::SmallVec;
     pub use uncased::{AsUncased, UncasedStr};
 
-    pub use lending_iterator::prelude::*;
     pub use path_slash::*;
     pub use rayon::prelude::*;
 
