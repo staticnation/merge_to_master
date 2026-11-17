@@ -15,15 +15,15 @@ strip = "symbols"
 anyhow = "^1.0"
 clap = { version = "^4.5", features = ["cargo"] }
 easy-ext = "^1.0"
-hashbrown = { version = "^0.16", features = ["rayon"] }
-itertools = "^0.14"
+hashbrown = { version = "^0.17", features = ["rayon"] }
+itertools = "^0.15"
 path-slash = "^0.2"
 rayon = "^1.10"
 log = { version = "^0.4" }
 tracing = { version = "^0.1" }
 tracing-appender = "^0.2"
 tracing-subscriber = { version = "^0.3", features = ["env-filter"] }
-glam = "^0.30"
+glam = "^0.34"
 uncased = "^0.9"
 bitflags = "^2.9"
 mimalloc = { version = "^0.1", features = ["v3"], optional = true }
